@@ -36,7 +36,7 @@
     backdrop-filter:blur(6px);
   }
   h2{font-size:19px;margin-bottom:12px}
-  .proto-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px}
+  .proto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
   .proto{
     border:2.5px solid transparent;
     background:#f3efff;
@@ -51,6 +51,7 @@
   .proto .nm{font-size:13.5px;font-weight:700;margin-top:4px}
   .proto[data-p="tel"].active{border-color:#7c3aed;background:#ede9fe}
   .proto[data-p="sms"].active{border-color:#0891b2;background:#e0f7fc}
+  .proto[data-p="whatsapp"].active{border-color:#16a34a;background:#e6f9ed}
   .proto[data-p="mailto"].active{border-color:#db2777;background:#fde7f1}
   .proto[data-p="facetime"].active{border-color:#2563eb;background:#e3edfe}
   label{display:block;font-size:14px;font-weight:700;margin:14px 0 6px}
@@ -181,6 +182,22 @@
       ],
       target:function(d){ return "sms:" + d.phoneDial + (d.text ? "?&body=" + encodeURIComponent(d.text) : ""); },
       land:function(d){ return {title:"שליחת SMS אל", detail:d.phonePretty, btn:"💬 פתח הודעה"}; }
+    },
+    whatsapp: {
+      name:"וואטסאפ", icon:"🟢",
+      anyOf:["phone","text"],
+      fields:[
+        {k:"phone",type:"phone",label:"מספר טלפון",hint:"או למטה: הודעה בלבד והנמען ייבחר בוואטסאפ"},
+        {k:"text",type:"textarea",label:"הודעה מוכנה מראש"}
+      ],
+      target:function(d){
+        if(d.phoneIntl){ return "https://wa.me/" + d.phoneIntl + (d.text ? "?text=" + encodeURIComponent(d.text) : ""); }
+        return "https://wa.me/?text=" + encodeURIComponent(d.text);
+      },
+      land:function(d){
+        if(d.phoneIntl) return {title:"שיחת וואטסאפ עם", detail:d.phonePretty, btn:"🟢 פתח וואטסאפ"};
+        return {title:"הודעת וואטסאפ", detail:d.text || "", btn:"🟢 בחר נמען בוואטסאפ"};
+      }
     },
     mailto: {
       name:"אימייל", icon:"✉️",
@@ -328,14 +345,18 @@
       var v = val(f.k);
       if(f.type==="phone"){
         var codeEl = $("f_"+f.k+"_code");
-        if(!v){ missing = true; }
-        params.set("phone", v);
-        if(codeEl) params.set("phone_code", codeEl.value);
+        if(!v && !p.anyOf){ missing = true; }
+        if(v) params.set("phone", v);
+        if(codeEl && v) params.set("phone_code", codeEl.value);
       } else {
-        if(!v && f.label.indexOf("לא חובה")===-1) missing = true;
+        if(!v && !p.anyOf && f.label.indexOf("לא חובה")===-1) missing = true;
         if(v) params.set(f.k, v);
       }
     });
+    if(p.anyOf){
+      var any = p.anyOf.some(function(k){ return !!val(k); });
+      if(!any) missing = true;
+    }
     if(missing){
       toast.textContent = "חסר שדה חובה ✍️";
       toast.style.background="#dc2626";
