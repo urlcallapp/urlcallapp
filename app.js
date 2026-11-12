@@ -9,6 +9,7 @@
     facetime:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>'
   };
 
+  IC.contact = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2ZM8 7a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm5 11H3v-1c0-2 3-3 5-3s5 1 5 3Zm7-3h-5v-2h5Zm0-4h-5V9h5Z"/></svg>';
   var COLORS = {tel:"#7c3aed", sms:"#0891b2", whatsapp:"#16a34a", mailto:"#db2777", facetime:"#2563eb"};
 
   var PROTOCOLS = {
@@ -69,6 +70,15 @@
     }
   };
 
+  PROTOCOLS.contact = {
+    name:"כרטיס קשר", dir:"contact", anyOf:["phone","email"],
+    fields:[
+      {k:"name",type:"text",label:"שם לתצוגה"},
+      {k:"phone",type:"phone",label:"טלפון (לא חובה)",hint:"לשיחה, וואטסאפ ו-SMS"},
+      {k:"email",type:"email",label:"אימייל (לא חובה)"}
+    ]
+  };
+
   var CODES = [
     ["+972","IL +972"],["+1","US +1"],["+44","UK +44"],["+49","DE +49"],
     ["+33","FR +33"],["+39","IT +39"],["+34","ES +34"],["+7","RU +7"],
@@ -82,7 +92,7 @@
   function decoratePhone(d){
     if(!d.phone) return;
     var raw = d.phone;
-    var code = d.phone_code || "";
+    var code = /^\+\d{1,4}$/.test(d.phone_code || "") ? d.phone_code : "";
     var digits = raw.replace(/[^\d+]/g,"");
     var intl;
     if(digits.charAt(0)==="+"){ intl = digits.slice(1); }
@@ -96,6 +106,48 @@
   }
 
   var mode = document.body.dataset.mode || "builder";
+
+  function validPhone(value){ return /^\+?[\d\s().-]+$/.test(value) && value.replace(/\D/g,"").length >= 5 && value.replace(/\D/g,"").length <= 15; }
+  function validEmail(value){ return /^[^\s@?&#]+@[^\s@?&#]+\.[^\s@?&#]+$/.test(value); }
+  function showError(message){
+    toast.textContent=message; toast.style.background="#dc2626"; toast.classList.add("show");
+    setTimeout(function(){toast.classList.remove("show");},2500);
+  }
+
+  /* ---------- contact card: no automatic launch ---------- */
+  if(mode === "contact"){
+    function renderContact(){
+    $("contact-actions").replaceChildren();
+    ["contact-phone","contact-email","contact-status"].forEach(function(id){$(id).textContent="";});
+    var cardData={};
+    new URLSearchParams(location.hash.slice(1)).forEach(function(v,k){cardData[k]=v;});
+    $("contact-name").textContent=cardData.name || "כרטיס קשר";
+    document.title=(cardData.name || "כרטיס קשר")+" · urlcallapp";
+    var phoneOK=cardData.phone && validPhone(cardData.phone);
+    var emailOK=cardData.email && validEmail(cardData.email);
+    if(phoneOK) decoratePhone(cardData);
+    var actions=$("contact-actions");
+    function addAction(type,label,target,detail){
+      var a=document.createElement("a");a.className="contact-action "+type;a.href=target;
+      a.innerHTML=IC[type]+"<span></span>";a.lastChild.textContent=label;
+      a.setAttribute("aria-label",label+" "+detail);actions.appendChild(a);
+    }
+    if(phoneOK){
+      $("contact-phone").textContent=cardData.phoneDial;
+      if(cardData.call!=="0") addAction("tel","שיחה",PROTOCOLS.tel.target(cardData),cardData.phoneDial);
+      if(cardData.wa!=="0") addAction("whatsapp","וואטסאפ",PROTOCOLS.whatsapp.target(cardData),cardData.phoneDial);
+      if(cardData.sms!=="0") addAction("sms","SMS",PROTOCOLS.sms.target(cardData),cardData.phoneDial);
+    }
+    if(emailOK){
+      $("contact-email").textContent=cardData.email;
+      addAction("mailto","אימייל","mailto:"+encodeURIComponent(cardData.email).replace(/%40/g,"@"),cardData.email);
+    }
+    if(!actions.children.length) $("contact-status").textContent="אין פרטי קשר תקינים בקישור. בקשו מהשולח קישור חדש.";
+    }
+    renderContact();
+    window.addEventListener("hashchange",renderContact);
+    return;
+  }
 
   /* ---------- landing mode ---------- */
   if(mode === "landing"){
@@ -129,7 +181,8 @@
 
   Object.keys(PROTOCOLS).forEach(function(key){
     var p = PROTOCOLS[key];
-    var el = document.createElement("div");
+    var el = document.createElement("button");
+    el.type="button"; el.setAttribute("aria-pressed", key===current ? "true":"false");
     el.className = "proto" + (key===current ? " active":"");
     el.dataset.p = key;
     el.innerHTML = IC[key] + '<div class="nm">'+esc(p.name)+'</div>';
@@ -137,6 +190,7 @@
       current = key;
       Array.prototype.forEach.call(protosEl.children,function(c){
         c.classList.toggle("active", c.dataset.p===key);
+        c.setAttribute("aria-pressed",c.dataset.p===key ? "true":"false");
       });
       renderFields();
       resultEl.classList.remove("show");
@@ -150,12 +204,13 @@
     p.fields.forEach(function(f){
       var lab = document.createElement("label");
       lab.innerHTML = esc(f.label) + (f.hint ? ' <span class="hint">'+esc(f.hint)+'</span>' : "");
+      lab.htmlFor="f_"+f.k;
       fieldsEl.appendChild(lab);
       if(f.type==="phone"){
         var row = document.createElement("div");
         row.className = "phone-row";
         var sel = document.createElement("select");
-        sel.id = "f_"+f.k+"_code";
+        sel.id = "f_"+f.k+"_code"; sel.setAttribute("aria-label","קידומת מדינה");
         CODES.forEach(function(c){
           var o=document.createElement("option");
           o.value=c[0]; o.textContent=c[1];
@@ -177,8 +232,14 @@
         fieldsEl.appendChild(i2);
       }
     });
+    if(current==="contact"){
+      var opts=document.createElement("fieldset");opts.className="contact-options";
+      opts.innerHTML='<legend>כפתורים בכרטיס (כשיש טלפון)</legend>'+[["call","שיחה"],["wa","וואטסאפ"],["sms","SMS"]].map(function(item){return '<label><input type="checkbox" id="opt_'+item[0]+'" checked>'+item[1]+'</label>';}).join("");
+      fieldsEl.appendChild(opts);
+    }
   }
   renderFields();
+  fieldsEl.addEventListener("input",function(){resultEl.classList.remove("show");});
 
   function val(k){ var e=$("f_"+k); return e ? e.value.trim() : ""; }
 
@@ -204,6 +265,14 @@
       var any = p.anyOf.some(function(k){ return !!val(k); });
       if(!any) missing = true;
     }
+    if(current==="contact"){
+      if(!val("name")) missing=true;
+      var enabled=["call","wa","sms"].some(function(k){return $("opt_"+k).checked;});
+      if(!val("email") && !(val("phone") && enabled)) missing=true;
+      ["call","wa","sms"].forEach(function(k){if(!$("opt_"+k).checked) params.set(k,"0");});
+    }
+    if(val("email") && !validEmail(val("email"))){showError("כתובת האימייל אינה תקינה");return;}
+    if(val("phone") && !(current==="facetime" && validEmail(val("phone"))) && !validPhone(val("phone"))){showError("מספר הטלפון אינו תקין");return;}
     if(missing){
       toast.textContent = "חסר שדה חובה";
       toast.style.background="#dc2626";
@@ -211,11 +280,24 @@
       setTimeout(function(){ toast.classList.remove("show"); }, 1800);
       return;
     }
-    var url = location.origin + basePath() + p.dir + "/?" + params.toString();
+    var url = location.origin + basePath() + p.dir + "/" + (current==="contact" ? "#" : "?") + params.toString();
     outEl.textContent = url;
     tryLink.href = url;
     resultEl.classList.add("show");
+    renderQR(url);
     resultEl.scrollIntoView({behavior:"smooth", block:"nearest"});
+  });
+
+  function renderQR(url){
+    var canvas=$("qr"), error=$("qr-error"), download=$("download-qr");
+    canvas.hidden=true;error.hidden=true;download.disabled=true;
+    QRCode.toCanvas(canvas,url,{width:768,margin:4,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},function(err){
+      if(err){error.textContent="הקישור ארוך מדי לקוד QR. אפשר להעתיק ולשתף אותו כרגיל.";error.hidden=false;return;}
+      canvas.hidden=false;download.disabled=false;
+    });
+  }
+  $("download-qr").addEventListener("click",function(){
+    var a=document.createElement("a");a.download="urlcallapp-qr.png";a.href=$("qr").toDataURL("image/png");a.click();
   });
 
   function doCopy(){
