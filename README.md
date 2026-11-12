@@ -16,8 +16,10 @@
 הקישור שנוצר מצביע לדף עם הפרטים ב-query string, למשל:
 
 ```
-https://urlcallapp.github.io/urlcallapp/?p=tel&phone=050-1234567&phone_code=%2B972
+https://urlcallapp.github.io/urlcallapp/call/?phone=050-1234567&phone_code=%2B972
 ```
+
+לקישור שיחה אפשר להוסיף גם שדה `name` (לא חובה), והשם יוצג בדף שנפתח מהקישור.
 
 כשפותחים אותו, הדף מנסה להפעיל את ה-protocol מיד. חלק מהדפדפנים דורשים מגע של המשתמש,
 ולכן תמיד מוצג כפתור גדול וברור כגיבוי.

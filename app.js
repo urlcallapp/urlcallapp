@@ -14,9 +14,12 @@
   var PROTOCOLS = {
     tel: {
       name:"שיחה", dir:"call",
-      fields:[{k:"phone",type:"phone",label:"מספר טלפון",hint:"למשל 050-1234567"}],
+      fields:[
+        {k:"name",type:"text",label:"שם (לא חובה)",hint:"יוצג בדף שנפתח מהקישור"},
+        {k:"phone",type:"phone",label:"מספר טלפון",hint:"למשל 050-1234567"}
+      ],
       target:function(d){ return "tel:" + d.phoneDial; },
-      land:function(d){ return {title:"שיחה יוצאת אל", detail:d.phonePretty, btn:"התקשר עכשיו"}; }
+      land:function(d){ return {title:d.name ? "שיחה יוצאת אל " + d.name : "שיחה יוצאת אל", detail:d.phonePretty, btn:"התקשר עכשיו"}; }
     },
     sms: {
       name:"SMS", dir:"sms",
