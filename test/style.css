@@ -142,3 +142,4 @@ body{min-height:100vh;background-attachment:scroll}
 .contact-avatar.has-logo{background:none;padding:0;overflow:hidden}
 .contact-avatar .logo-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
 .logo-box input[type=checkbox]{width:18px;height:18px;flex:none;margin:2px 0 0;padding:0}.logo-box .embed-opt{flex-direction:row}
+.qr-note{margin-top:10px;padding:10px 12px;border-radius:12px;background:#fef3c7;color:#78350f;font-size:13px}.qr-note[hidden]{display:none}

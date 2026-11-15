@@ -270,7 +270,7 @@
     loadImg(dataUrl,function(im){
       if(!im) return;
       logoBig=scaled(im,256,"image/jpeg",.88);
-      logoTiny=scaled(im,72,"image/jpeg",.6).split(",")[1];
+      logoTiny=scaled(im,56,"image/jpeg",.5).split(",")[1];
       logoPrev.src=logoBig; logoPrev.hidden=false; logoClear.hidden=false; logoEmbed.disabled=false;
       try{localStorage.setItem(LOGO_KEY,logoBig);}catch(e){}
       resultEl.classList.remove("show");
@@ -381,7 +381,8 @@
   var shareSheet=$("shareSheet"), sharePreview=$("sharePreview"),
       shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
       shareCancel=$("shareCancel");
-  var shareBlob=null, lastGen=null;
+  var shareBlob=null, lastGen=null, qrNote=$("qrNote");
+  var QR_CARD_MAX=600; /* longer links make a QR too dense to scan at card size */
   var WANT_QR=true; /* QR on the card - confirmed by the owner */
   var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
   var NEUTRAL_BTN={tel:"התקשר/י",sms:"שלח/י",whatsapp:"פתח/י וואטסאפ",mailto:"פתח/י מייל",facetime:"התחל/י FaceTime"};
@@ -530,11 +531,11 @@
       sharePreview.hidden=false;
       card.toBlob(function(b){ shareBlob=b; shareGo.disabled=false; },"image/png");
     }
-    if(WANT_QR){
+    if(WANT_QR && lastGen.url.length<=QR_CARD_MAX){
       QRCode.toCanvas(document.createElement("canvas"),lastGen.url,
         {width:352,margin:2,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},
-        function(err,qc){ finish(err?null:qc); });
-    } else { finish(null); }
+        function(err,qc){ qrNote.hidden=!err; finish(err?null:qc); });
+    } else { qrNote.hidden=!WANT_QR; finish(null); }
   }
 
   function openShare(){
