@@ -449,9 +449,6 @@
       x.fillStyle="#6b5f8a";x.font="400 26px "+FONT;x.direction="rtl";
       x.fillText("סריקה לפתיחת הקישור",W/2,qy+qs+52);
     }
-    /* footer on the gradient */
-    x.font="400 30px "+FONT;x.fillStyle="rgba(255,255,255,.92)";x.direction="rtl";x.textAlign="center";
-    x.fillText("נוצר עם urlcallapp · בלי אפליקציה ובלי שרת",W/2,cy+ch+72);
     return c;
   }
 
