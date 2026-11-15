@@ -341,6 +341,7 @@
   function renderQR(url){
     var canvas=$("qr"), error=$("qr-error"), download=$("download-qr");
     canvas.hidden=true;error.hidden=true;download.disabled=true;
+    if(url.length>QR_CARD_MAX){error.textContent="הקישור ארוך מדי לקוד QR שאפשר לסרוק בביטחון (בגלל הלוגו בדף שנפתח). אפשר לבטל את הסימון בלוגו כדי לקבל QR, או לשתף את הקישור כרגיל.";error.hidden=false;return;}
     QRCode.toCanvas(canvas,url,{width:768,margin:4,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},function(err){
       if(err){error.textContent="הקישור ארוך מדי לקוד QR. אפשר להעתיק ולשתף אותו כרגיל.";error.hidden=false;return;}
       canvas.hidden=false;download.disabled=false;
@@ -428,7 +429,7 @@
     x.fillStyle="#fff";x.fillText("app",tx+w1+w2,ty);
     /* the white card - same content as the landing page */
     var info = key==="contact" ? null : PROTOCOLS[key].land(gen.data);
-    var cx=110, cy=170, cw=W-220, ch=qrCanvas ? 780 : 560;
+    var cx=110, cy=170, cw=W-220, ch=(qrCanvas ? 780 : 560)+(logoImg ? 36 : 0);
     x.save();
     x.shadowColor="rgba(31,18,53,.35)";x.shadowBlur=45;x.shadowOffsetY=18;
     rr(x,cx,cy,cw,ch,56);x.fillStyle="rgba(255,255,255,.96)";x.fill();
@@ -441,7 +442,7 @@
       var ls=140; x.save(); rr(x,W/2-ls/2,iy-10,ls,ls,32); x.clip();
       x.drawImage(logoImg,W/2-ls/2,iy-10,ls,ls); x.restore();
       x.strokeStyle="#ddd6f3";x.lineWidth=3; rr(x,W/2-ls/2,iy-10,ls,ls,32); x.stroke();
-      y+=34;
+      isize=150;
     } else {
     x.save();x.translate(W/2,iy+isize/2);
     var isc=isize/24;x.scale(isc,isc);x.translate(-12,-12);
