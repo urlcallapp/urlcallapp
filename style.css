@@ -114,3 +114,18 @@
 body{min-height:100vh;background-attachment:scroll}
 
 #out{min-width:0;max-height:112px;overflow:auto;display:block}.copy-btn{align-self:stretch}
+
+/* Designed share sheet */
+.share-sheet{position:fixed;inset:0;background:rgba(31,18,53,.55);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;padding:18px;z-index:50}
+.share-sheet[hidden]{display:none}
+.share-dialog{background:var(--card);border-radius:26px;padding:22px 20px;width:100%;max-width:440px;max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 18px 45px rgba(31,18,53,.4)}
+.share-dialog h3{font-size:19px}
+.share-dialog .why{font-size:13px;color:#6b5f8a;margin:4px 0 6px}
+.share-preview{margin:14px 0 2px}
+.share-preview img{width:min(100%,300px);border-radius:18px;box-shadow:0 8px 22px rgba(31,18,53,.25);display:block;margin:0 auto}
+.share-dialog .btn{margin-top:16px}
+.share-dialog .ghost{width:100%;margin-top:8px}
+.share-dialog small{display:block;margin-top:10px;font-size:12px;color:#6b5f8a}
+.btn:disabled{opacity:.6;cursor:default}
+.toast{z-index:60}
+@media(min-width:560px){.share-sheet{align-items:center}}
