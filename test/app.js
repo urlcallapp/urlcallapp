@@ -281,6 +281,8 @@
       return;
     }
     var url = location.origin + basePath() + p.dir + "/" + (current==="contact" ? "#" : "?") + params.toString();
+    var genData={}; params.forEach(function(v,k){ genData[k]=v; }); decoratePhone(genData);
+    lastGen={key:current,data:genData,url:url};
     outEl.textContent = url;
     tryLink.href = url;
     resultEl.classList.add("show");
@@ -327,11 +329,12 @@
   }
   copyBtn.addEventListener("click", doCopy);
 
-  /* ---------- designed share card (local canvas, no server) ---------- */
+  /* ---------- designed share card: renders the actual card, locally ---------- */
   var shareSheet=$("shareSheet"), shareName=$("shareName"), sharePreview=$("sharePreview"),
       shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
       shareCancel=$("shareCancel");
-  var shareBlob=null, shareTimer=null;
+  var shareBlob=null, shareTimer=null, lastGen=null;
+  var WANT_QR=false; /* QR on the card - pending owner confirmation */
   var SHARE_PHRASES={tel:"שיחה",sms:"SMS",whatsapp:"וואטסאפ",mailto:"מייל",facetime:"FaceTime",contact:"כרטיס קשר"};
   var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
   var FONT='"Heebo","Segoe UI",Arial,sans-serif';
@@ -342,26 +345,27 @@
     while(size>min){ x.font=weight+" "+size+"px "+family; if(x.measureText(text).width<=maxW) break; size-=2; }
     return size;
   }
+  function circle(x,px,py,r){ x.beginPath(); x.arc(px,py,r,0,7); x.fill(); }
 
-  function drawShareCard(name,key){
+  /* Draws the card exactly as the recipient sees it: same icon, title, detail
+     and action button the landing page computes via PROTOCOLS[key].land(). */
+  function drawShareCard(gen, qrCanvas){
     var W=1080,H=1080,c=document.createElement("canvas");c.width=W;c.height=H;
-    var x=c.getContext("2d"), color=SHARE_COLORS[key]||"#7c3aed";
+    var x=c.getContext("2d"), key=gen.key, color=SHARE_COLORS[key]||"#7c3aed";
     var g=x.createLinearGradient(0,0,W,H);
     g.addColorStop(0,"#6d28d9");g.addColorStop(.45,"#db2777");g.addColorStop(1,"#f59e0b");
     x.fillStyle=g;x.fillRect(0,0,W,H);
     x.fillStyle="rgba(255,255,255,.09)";
-    x.beginPath();x.arc(60,150,240,0,7);x.fill();
-    x.beginPath();x.arc(W-40,H-170,290,0,7);x.fill();
+    circle(x,60,150,240); circle(x,W-40,H-170,290);
     x.fillStyle="rgba(255,255,255,.06)";
-    x.beginPath();x.arc(180,H-40,170,0,7);x.fill();
-    x.beginPath();x.arc(W-190,70,150,0,7);x.fill();
-    /* brand row: mark + urlcallapp wordmark, centered as a group */
-    var mark=104, markY=86;
+    circle(x,180,H-40,170); circle(x,W-190,70,150);
+    /* small brand row (attribution only) */
+    var mark=64, markY=56;
     var phoneIcon=iconPath("tel");
-    x.font="800 78px "+FONT;
+    x.font="800 50px "+FONT;
     var w1=x.measureText("url").width, w2=x.measureText("call").width, w3=x.measureText("app").width;
-    var total=mark+26+w1+w2+w3, bx=(W-total)/2;
-    rr(x,bx,markY,mark,mark,30);
+    var total=mark+18+w1+w2+w3, bx=(W-total)/2;
+    rr(x,bx,markY,mark,mark,20);
     var mg=x.createLinearGradient(bx,markY,bx+mark,markY+mark);
     mg.addColorStop(0,"#fde047");mg.addColorStop(1,"#fb923c");
     x.fillStyle=mg;x.fill();
@@ -369,44 +373,81 @@
     var ms=mark*0.62/24;x.scale(ms,ms);x.translate(-12,-12);
     x.fillStyle="#1f1235";if(phoneIcon)x.fill(phoneIcon);x.restore();
     x.textBaseline="middle";x.textAlign="left";x.direction="ltr";
-    var ty=markY+mark/2+4, tx=bx+mark+26;
+    var ty=markY+mark/2+2, tx=bx+mark+18;
     x.fillStyle="#fff";x.fillText("url",tx,ty);
     x.fillStyle="#fde047";x.fillText("call",tx+w1,ty);
     x.fillStyle="#fff";x.fillText("app",tx+w1+w2,ty);
-    /* white card */
-    var cx=100,cy=250,cw=W-200,ch=620;
+    /* the white card - same content as the landing page */
+    var info = key==="contact" ? null : PROTOCOLS[key].land(gen.data);
+    var cx=110, cy=170, cw=W-220, ch=qrCanvas ? 780 : 560;
     x.save();
     x.shadowColor="rgba(31,18,53,.35)";x.shadowBlur=45;x.shadowOffsetY=18;
-    rr(x,cx,cy,cw,ch,56);x.fillStyle="rgba(255,255,255,.95)";x.fill();
+    rr(x,cx,cy,cw,ch,56);x.fillStyle="rgba(255,255,255,.96)";x.fill();
     x.restore();
-    /* protocol icon disc */
-    var icx=W/2, icy=cy+128, ir=76;
-    x.beginPath();x.arc(icx,icy,ir,0,7);x.fillStyle=color;x.fill();
+    var y=cy;
+    /* big action icon in its color, like the landing page */
     var p=iconPath(key)||phoneIcon;
-    x.save();x.translate(icx,icy);
-    var is=(ir*2*0.62)/24;x.scale(is,is);x.translate(-12,-12);
-    x.fillStyle="#fff";if(p)x.fill(p);x.restore();
-    /* headline + subline */
-    var headline=name ? "היי "+name+"!" : "היי!";
+    var iy=y+64, isize=120;
+    x.save();x.translate(W/2,iy+isize/2);
+    var isc=isize/24;x.scale(isc,isc);x.translate(-12,-12);
+    x.fillStyle=color;if(p)x.fill(p);x.restore();
+    y=iy+isize+44;
     x.direction="rtl";x.textAlign="center";x.textBaseline="alphabetic";
-    fitFont(x,headline,"800",84,40,FONT,cw-120);
-    x.fillStyle="#1f1235";
-    x.fillText(headline,W/2,cy+292);
-    var line2="הכנתי לך קישור שפותח "+(SHARE_PHRASES[key]||"פעולה")+" בלחיצה אחת";
-    fitFont(x,line2,"500",40,26,FONT,cw-140);
-    x.fillStyle="#4c3f73";
-    x.fillText(line2,W/2,cy+368);
-    /* domain pill */
-    var pill="urlcallapp.github.io/urlcallapp";
-    x.font="700 34px "+FONT;x.direction="ltr";
-    var pw=x.measureText(pill).width+72;
-    rr(x,(W-pw)/2,cy+460,pw,86,43);
-    x.fillStyle="#f3efff";x.fill();
-    x.fillStyle="#7c3aed";x.textAlign="center";x.textBaseline="middle";
-    x.fillText(pill,W/2,cy+460+46);
+    if(key==="contact"){
+      var d=gen.data;
+      fitFont(x,d.name||"כרטיס קשר","800",72,36,FONT,cw-120);
+      x.fillStyle="#1f1235";x.fillText(d.name||"כרטיס קשר",W/2,y);y+=66;
+      x.fillStyle="#6b5f8a";
+      if(d.phonePretty){ fitFont(x,d.phonePretty,"500",38,24,FONT,cw-140); x.direction="ltr"; x.fillText(d.phonePretty,W/2,y); x.direction="rtl"; y+=54; }
+      if(d.email){ fitFont(x,d.email,"500",38,24,FONT,cw-140); x.direction="ltr"; x.fillText(d.email,W/2,y); x.direction="rtl"; y+=54; }
+      /* action chips, like the contact page buttons */
+      var chips=[];
+      if(d.phoneIntl){ if(d.call!=="0") chips.push(["שיחה",SHARE_COLORS.tel]); if(d.wa!=="0") chips.push(["וואטסאפ",SHARE_COLORS.whatsapp]); if(d.sms!=="0") chips.push(["SMS",SHARE_COLORS.sms]); }
+      if(d.email) chips.push(["אימייל",SHARE_COLORS.mailto]);
+      y+=16;
+      x.font="700 34px "+FONT;
+      var widths=chips.map(function(chp){ return x.measureText(chp[0]).width+56; });
+      var totalW=widths.reduce(function(a,b){ return a+b; },0)+(chips.length-1)*18;
+      var sx=W/2-totalW/2;
+      chips.forEach(function(chp,i){
+        rr(x,sx,y,widths[i],72,36);x.fillStyle=chp[1];x.fill();
+        x.fillStyle="#fff";x.textBaseline="middle";
+        x.fillText(chp[0],sx+widths[i]/2,y+38);x.textBaseline="alphabetic";
+        sx+=widths[i]+18;
+      });
+      y+=72;
+    } else {
+      fitFont(x,info.title,"800",64,34,FONT,cw-120);
+      x.fillStyle="#1f1235";x.fillText(info.title,W/2,y);y+=72;
+      if(info.detail){
+        x.fillStyle="#4c3f73";
+        fitFont(x,info.detail,"500",42,26,FONT,cw-140);
+        if(!/[א-ת]/.test(info.detail)) x.direction="ltr";
+        x.fillText(info.detail,W/2,y);x.direction="rtl";y+=64;
+      }
+      /* the action button (visual only) */
+      var label=info.btn;
+      x.font="800 40px "+FONT;
+      var bw=x.measureText(label).width+96;
+      rr(x,(W-bw)/2,y+16,bw,92,46);
+      x.fillStyle=color;x.fill();
+      x.fillStyle="#fff";x.textBaseline="middle";
+      x.fillText(label,W/2,y+16+48);x.textBaseline="alphabetic";
+      y+=16+92;
+    }
+    if(qrCanvas){
+      var qs=176, qx=(W-qs)/2, qy=y+44;
+      rr(x,qx-14,qy-14,qs+28,qs+28,24);
+      x.fillStyle="#fff";x.fill();
+      x.strokeStyle="#ddd6f3";x.lineWidth=3;
+      rr(x,qx-14,qy-14,qs+28,qs+28,24);x.stroke();
+      x.drawImage(qrCanvas,qx,qy,qs,qs);
+      x.fillStyle="#6b5f8a";x.font="400 26px "+FONT;x.direction="rtl";
+      x.fillText("סריקה לפתיחת הקישור",W/2,qy+qs+52);
+    }
     /* footer on the gradient */
-    x.font="400 30px "+FONT;x.fillStyle="rgba(255,255,255,.92)";x.direction="rtl";
-    x.fillText("נוצר בדפדפן, בלי אפליקציה ובלי שרת",W/2,cy+ch+92);
+    x.font="400 30px "+FONT;x.fillStyle="rgba(255,255,255,.92)";x.direction="rtl";x.textAlign="center";
+    x.fillText("נוצר עם urlcallapp · בלי אפליקציה ובלי שרת",W/2,cy+ch+72);
     return c;
   }
 
@@ -423,14 +464,23 @@
   }
 
   function refreshSharePreview(){
-    var card=drawShareCard(shareName.value.trim(),current);
-    shareImg.src=card.toDataURL("image/png");
-    sharePreview.hidden=false;
+    if(!lastGen) return;
     shareBlob=null;shareGo.disabled=true;
-    card.toBlob(function(b){ shareBlob=b; shareGo.disabled=false; },"image/png");
+    function finish(qc){
+      var card=drawShareCard(lastGen,qc);
+      shareImg.src=card.toDataURL("image/png");
+      sharePreview.hidden=false;
+      card.toBlob(function(b){ shareBlob=b; shareGo.disabled=false; },"image/png");
+    }
+    if(WANT_QR){
+      QRCode.toCanvas(document.createElement("canvas"),lastGen.url,
+        {width:352,margin:2,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},
+        function(err,qc){ finish(err?null:qc); });
+    } else { finish(null); }
   }
 
   function openShare(){
+    if(!lastGen) return;
     var preset=val("name");
     if(preset) shareName.value=preset;
     shareSheet.hidden=false;
@@ -453,13 +503,15 @@
   });
   shareDownload.addEventListener("click", function(){
     if(!shareImg.src) return;
-    var a=document.createElement("a");a.download="urlcallapp-share.png";a.href=shareImg.src;a.click();
+    var a=document.createElement("a");a.download="urlcallapp-card.png";a.href=shareImg.src;a.click();
   });
 
   shareGo.addEventListener("click", function(){
-    var url=outEl.textContent;
+    if(!lastGen) return;
+    var url=lastGen.url;
     var nm=shareName.value.trim();
     var text=(nm ? nm+", " : "")+"הכנתי לך קישור שפותח "+(SHARE_PHRASES[current]||"פעולה")+" בלחיצה אחת ✨";
+    var textWithUrl=WANT_QR ? text : text+"\n"+url;
     function done(){ closeShare(); }
     function copyFallback(){
       copyPlain(text+"\n"+url,function(){
@@ -471,9 +523,9 @@
       done();
     }
     if(shareBlob){
-      var file=new File([shareBlob],"urlcallapp-share.png",{type:"image/png"});
+      var file=new File([shareBlob],"urlcallapp-card.png",{type:"image/png"});
       if(navigator.canShare && navigator.canShare({files:[file]})){
-        navigator.share({files:[file],text:text+"\n"+url,title:"urlcallapp"}).then(done,function(){});
+        navigator.share({files:[file],text:textWithUrl,title:"urlcallapp"}).then(done,function(){});
         return;
       }
     }
