@@ -34,3 +34,5 @@ https://urlcallapp.github.io/urlcallapp/call/?phone=050-1234567&phone_code=%2B97
 הכל קורה בדפדפן של המשתמש. אין שרת, אין שמירת מידע, אין עוגיות.
 כל מי שמחזיק קישור כרטיס קשר או את ה-QR שלו יכול לקרוא את הפרטים שבו — אין בו סודות.
 בלי build; ספריית ה-QR (`qrcode`, רישיון MIT) ארוזה מקומית ב-`vendor/`.
+
+Names and logo: every action type takes an optional name. An optional logo is chosen on the device, kept only in that browser, and drawn on the share card image. An opt-in checkbox can also embed a tiny copy in the link fragment so the opened page shows it (long link, no QR).

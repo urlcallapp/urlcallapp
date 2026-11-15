@@ -25,6 +25,7 @@
     sms: {
       name:"SMS", dir:"sms",
       fields:[
+        {k:"name",type:"text",label:"שם (לא חובה)",hint:"יוצג בדף שנפתח ובתמונת השיתוף"},
         {k:"phone",type:"phone",label:"מספר טלפון"},
         {k:"text",type:"textarea",label:"הודעה (לא חובה)"}
       ],
@@ -35,6 +36,7 @@
       name:"וואטסאפ", dir:"whatsapp",
       anyOf:["phone","text"],
       fields:[
+        {k:"name",type:"text",label:"שם (לא חובה)",hint:"יוצג בדף שנפתח ובתמונת השיתוף"},
         {k:"phone",type:"phone",label:"מספר טלפון",hint:"או למטה: הודעה בלבד, והנמען ייבחר בוואטסאפ"},
         {k:"text",type:"textarea",label:"הודעה מוכנה מראש"}
       ],
@@ -50,6 +52,7 @@
     mailto: {
       name:"אימייל", dir:"email",
       fields:[
+        {k:"name",type:"text",label:"שם (לא חובה)",hint:"יוצג בדף שנפתח ובתמונת השיתוף"},
         {k:"email",type:"email",label:"כתובת מייל"},
         {k:"subject",type:"text",label:"נושא (לא חובה)"},
         {k:"body",type:"textarea",label:"תוכן (לא חובה)"}
@@ -64,7 +67,7 @@
     },
     facetime: {
       name:"FaceTime", dir:"facetime",
-      fields:[{k:"phone",type:"phone",label:"מספר טלפון או אימייל",hint:"מספר, או כתובת מייל של Apple ID"}],
+      fields:[{k:"name",type:"text",label:"שם (לא חובה)",hint:"יוצג בדף שנפתח ובתמונת השיתוף"},{k:"phone",type:"phone",label:"מספר טלפון או אימייל",hint:"מספר, או כתובת מייל של Apple ID"}],
       target:function(d){ return "facetime:" + (d.phoneDial || d.raw); },
       land:function(d){ return {title:"שיחת FaceTime אל", detail:d.phonePretty, btn:"התחל FaceTime"}; }
     }
@@ -105,6 +108,12 @@
     d.phonePretty = raw;
   }
 
+  /* logo embedded in the link (optional): tiny JPEG as base64 in the #fragment */
+  function readLogo(src){
+    var p=new URLSearchParams(String(src||"").replace(/^#/,"")).get("logo");
+    return p && /^[A-Za-z0-9+\/=]+$/.test(p) && p.length<=30000 ? "data:image/jpeg;base64,"+p : "";
+  }
+
   var mode = document.body.dataset.mode || "builder";
 
   function validPhone(value){ return /^\+?[\d\s().-]+$/.test(value) && value.replace(/\D/g,"").length >= 5 && value.replace(/\D/g,"").length <= 15; }
@@ -122,6 +131,8 @@
     var cardData={};
     new URLSearchParams(location.hash.slice(1)).forEach(function(v,k){cardData[k]=v;});
     $("contact-name").textContent=cardData.name || "כרטיס קשר";
+    var lg=readLogo(location.hash), av=document.querySelector(".contact-avatar");
+    if(av){ av.replaceChildren(); if(lg){ var im=document.createElement("img"); im.src=lg; im.alt=""; im.className="logo-img"; av.appendChild(im); av.classList.add("has-logo"); } else { av.textContent="✦"; av.classList.remove("has-logo"); } }
     document.title=(cardData.name || "כרטיס קשר")+" · urlcallapp";
     var phoneOK=cardData.phone && validPhone(cardData.phone);
     var emailOK=cardData.email && validEmail(cardData.email);
@@ -163,7 +174,10 @@
     var info = proto.land(data);
     document.title = info.title + " " + (info.detail||"") + " · urlcallapp";
     $("lIc").innerHTML = IC[type].replace("<svg", '<svg class="big-ic" style="color:' + COLORS[type] + '"');
+    var lgSrc = readLogo(location.hash);
+    if(lgSrc){ var li=document.createElement("img"); li.src=lgSrc; li.alt=""; li.className="land-logo"; $("lIc").prepend(li); }
     $("lTitle").textContent = info.title;
+    if(data.name && type!=="tel"){ var nm=document.createElement("div"); nm.className="land-name"; nm.textContent=data.name; $("lTitle").after(nm); }
     $("lDetail").textContent = info.detail || "";
     var go = $("lGo");
     go.innerHTML = IC[type] + esc(info.btn);
@@ -239,6 +253,39 @@
     }
   }
   renderFields();
+  /* ---------- logo: stays on this device, optional embed in the link ---------- */
+  var LOGO_KEY="urlcallapp.logo", logoBig=null, logoTiny=null;
+  var logoPick=$("logoPick"), logoFile=$("logoFile"), logoPrev=$("logoPrev"),
+      logoClear=$("logoClear"), logoEmbed=$("logoEmbed");
+  function loadImg(src,cb){ var im=new Image(); im.onload=function(){cb(im);}; im.onerror=function(){cb(null);}; im.src=src; }
+  function scaled(im,size,type,q){
+    var c=document.createElement("canvas"); c.width=c.height=size; var x=c.getContext("2d");
+    x.fillStyle="#fff"; x.fillRect(0,0,size,size);
+    var r=Math.min(size/im.width,size/im.height), w=im.width*r, h=im.height*r;
+    x.drawImage(im,(size-w)/2,(size-h)/2,w,h);
+    return c.toDataURL(type,q);
+  }
+  function setLogo(dataUrl){
+    if(!dataUrl){ logoBig=logoTiny=null; logoPrev.hidden=true; logoClear.hidden=true; logoEmbed.disabled=true; try{localStorage.removeItem(LOGO_KEY);}catch(e){} resultEl.classList.remove("show"); return; }
+    loadImg(dataUrl,function(im){
+      if(!im) return;
+      logoBig=scaled(im,256,"image/jpeg",.88);
+      logoTiny=scaled(im,56,"image/jpeg",.5).split(",")[1];
+      logoPrev.src=logoBig; logoPrev.hidden=false; logoClear.hidden=false; logoEmbed.disabled=false;
+      try{localStorage.setItem(LOGO_KEY,logoBig);}catch(e){}
+      resultEl.classList.remove("show");
+    });
+  }
+  logoPick.addEventListener("click",function(){ logoFile.click(); });
+  logoFile.addEventListener("change",function(){
+    var f=logoFile.files && logoFile.files[0]; if(!f) return;
+    if(!/^image\//.test(f.type)){ showError("יש לבחור קובץ תמונה"); return; }
+    var fr=new FileReader(); fr.onload=function(){ setLogo(fr.result); }; fr.readAsDataURL(f);
+    logoFile.value="";
+  });
+  logoClear.addEventListener("click",function(){ setLogo(null); });
+  logoEmbed.addEventListener("change",function(){ resultEl.classList.remove("show"); });
+  try{ var saved=localStorage.getItem(LOGO_KEY); if(saved) setLogo(saved); else setLogo(null); }catch(e){ setLogo(null); }
   fieldsEl.addEventListener("input",function(){resultEl.classList.remove("show");});
 
   function val(k){ var e=$("f_"+k); return e ? e.value.trim() : ""; }
@@ -280,7 +327,8 @@
       setTimeout(function(){ toast.classList.remove("show"); }, 1800);
       return;
     }
-    var url = location.origin + basePath() + p.dir + "/" + (current==="contact" ? "#" : "?") + params.toString();
+    var logoFrag = (logoBig && logoEmbed.checked && logoTiny) ? "logo=" + encodeURIComponent(logoTiny) : "";
+    var url = location.origin + basePath() + p.dir + "/" + (current==="contact" ? "#" + params.toString() + (logoFrag ? "&" + logoFrag : "") : "?" + params.toString() + (logoFrag ? "#" + logoFrag : ""));
     var genData={}; params.forEach(function(v,k){ genData[k]=v; }); decoratePhone(genData);
     lastGen={key:current,data:genData,url:url};
     outEl.textContent = url;
@@ -293,6 +341,7 @@
   function renderQR(url){
     var canvas=$("qr"), error=$("qr-error"), download=$("download-qr");
     canvas.hidden=true;error.hidden=true;download.disabled=true;
+    if(url.length>QR_CARD_MAX){error.textContent="הקישור ארוך מדי לקוד QR שאפשר לסרוק בביטחון (בגלל הלוגו בדף שנפתח). אפשר לבטל את הסימון בלוגו כדי לקבל QR, או לשתף את הקישור כרגיל.";error.hidden=false;return;}
     QRCode.toCanvas(canvas,url,{width:768,margin:4,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},function(err){
       if(err){error.textContent="הקישור ארוך מדי לקוד QR. אפשר להעתיק ולשתף אותו כרגיל.";error.hidden=false;return;}
       canvas.hidden=false;download.disabled=false;
@@ -333,7 +382,8 @@
   var shareSheet=$("shareSheet"), sharePreview=$("sharePreview"),
       shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
       shareCancel=$("shareCancel");
-  var shareBlob=null, lastGen=null;
+  var shareBlob=null, lastGen=null, qrNote=$("qrNote");
+  var QR_CARD_MAX=600; /* longer links make a QR too dense to scan at card size */
   var WANT_QR=true; /* QR on the card - confirmed by the owner */
   var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
   var NEUTRAL_BTN={tel:"התקשר/י",sms:"שלח/י",whatsapp:"פתח/י וואטסאפ",mailto:"פתח/י מייל",facetime:"התחל/י FaceTime"};
@@ -349,7 +399,7 @@
 
   /* Draws the card exactly as the recipient sees it: same icon, title, detail
      and action button the landing page computes via PROTOCOLS[key].land(). */
-  function drawShareCard(gen, qrCanvas){
+  function drawShareCard(gen, qrCanvas, logoImg){
     var W=1080,H=1080,c=document.createElement("canvas");c.width=W;c.height=H;
     var x=c.getContext("2d"), key=gen.key, color=SHARE_COLORS[key]||"#7c3aed";
     var g=x.createLinearGradient(0,0,W,H);
@@ -379,7 +429,7 @@
     x.fillStyle="#fff";x.fillText("app",tx+w1+w2,ty);
     /* the white card - same content as the landing page */
     var info = key==="contact" ? null : PROTOCOLS[key].land(gen.data);
-    var cx=110, cy=170, cw=W-220, ch=qrCanvas ? 780 : 560;
+    var cx=110, cy=170, cw=W-220, ch=(qrCanvas ? 780 : 560)+(logoImg ? 36 : 0);
     x.save();
     x.shadowColor="rgba(31,18,53,.35)";x.shadowBlur=45;x.shadowOffsetY=18;
     rr(x,cx,cy,cw,ch,56);x.fillStyle="rgba(255,255,255,.96)";x.fill();
@@ -388,9 +438,16 @@
     /* big action icon in its color, like the landing page */
     var p=iconPath(key)||phoneIcon;
     var iy=y+64, isize=120;
+    if(logoImg){
+      var ls=140; x.save(); rr(x,W/2-ls/2,iy-10,ls,ls,32); x.clip();
+      x.drawImage(logoImg,W/2-ls/2,iy-10,ls,ls); x.restore();
+      x.strokeStyle="#ddd6f3";x.lineWidth=3; rr(x,W/2-ls/2,iy-10,ls,ls,32); x.stroke();
+      isize=150;
+    } else {
     x.save();x.translate(W/2,iy+isize/2);
     var isc=isize/24;x.scale(isc,isc);x.translate(-12,-12);
     x.fillStyle=color;if(p)x.fill(p);x.restore();
+    }
     y=iy+isize+44;
     x.direction="rtl";x.textAlign="center";x.textBaseline="alphabetic";
     if(key==="contact"){
@@ -467,16 +524,19 @@
     if(!lastGen) return;
     shareBlob=null;shareGo.disabled=true;
     function finish(qc){
-      var card=drawShareCard(lastGen,qc);
+      if(logoBig){ loadImg(logoBig,function(li){ go2(qc,li); }); } else go2(qc,null);
+    }
+    function go2(qc,li){
+      var card=drawShareCard(lastGen,qc,li);
       shareImg.src=card.toDataURL("image/png");
       sharePreview.hidden=false;
       card.toBlob(function(b){ shareBlob=b; shareGo.disabled=false; },"image/png");
     }
-    if(WANT_QR){
+    if(WANT_QR && lastGen.url.length<=QR_CARD_MAX){
       QRCode.toCanvas(document.createElement("canvas"),lastGen.url,
         {width:352,margin:2,errorCorrectionLevel:"M",color:{dark:"#1f1235",light:"#ffffff"}},
-        function(err,qc){ finish(err?null:qc); });
-    } else { finish(null); }
+        function(err,qc){ qrNote.hidden=!err; finish(err?null:qc); });
+    } else { qrNote.hidden=!WANT_QR; finish(null); }
   }
 
   function openShare(){
