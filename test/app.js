@@ -441,7 +441,7 @@
       var ls=140; x.save(); rr(x,W/2-ls/2,iy-10,ls,ls,32); x.clip();
       x.drawImage(logoImg,W/2-ls/2,iy-10,ls,ls); x.restore();
       x.strokeStyle="#ddd6f3";x.lineWidth=3; rr(x,W/2-ls/2,iy-10,ls,ls,32); x.stroke();
-      isize=140; iy-=10;
+      y+=34;
     } else {
     x.save();x.translate(W/2,iy+isize/2);
     var isc=isize/24;x.scale(isc,isc);x.translate(-12,-12);
