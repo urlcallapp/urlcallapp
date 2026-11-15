@@ -334,9 +334,10 @@
       shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
       shareCancel=$("shareCancel");
   var shareBlob=null, shareTimer=null, lastGen=null;
-  var WANT_QR=false; /* QR on the card - pending owner confirmation */
+  var WANT_QR=true; /* QR on the card - confirmed by the owner */
   var SHARE_PHRASES={tel:"שיחה",sms:"SMS",whatsapp:"וואטסאפ",mailto:"מייל",facetime:"FaceTime",contact:"כרטיס קשר"};
   var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
+  var NEUTRAL_BTN={tel:"התקשר/י",sms:"שלח/י",whatsapp:"פתח/י וואטסאפ",mailto:"פתח/י מייל",facetime:"התחל/י FaceTime"};
   var FONT='"Heebo","Segoe UI",Arial,sans-serif';
 
   function iconPath(key){ var m=IC[key] && IC[key].match(/d="([^"]+)"/); return m ? new Path2D(m[1]) : null; }
@@ -417,16 +418,19 @@
       });
       y+=72;
     } else {
-      fitFont(x,info.title,"800",64,34,FONT,cw-120);
-      x.fillStyle="#1f1235";x.fillText(info.title,W/2,y);y+=72;
+      if(gen.data.name){
+        fitFont(x,gen.data.name,"800",72,36,FONT,cw-120);
+        x.fillStyle="#1f1235";x.fillText(gen.data.name,W/2,y);y+=72;
+      }
       if(info.detail){
         x.fillStyle="#4c3f73";
         fitFont(x,info.detail,"500",42,26,FONT,cw-140);
         if(!/[א-ת]/.test(info.detail)) x.direction="ltr";
         x.fillText(info.detail,W/2,y);x.direction="rtl";y+=64;
       }
-      /* the action button (visual only) */
-      var label=info.btn;
+      /* the action button (visual only), gender-neutral wording */
+      var label=NEUTRAL_BTN[key] || info.btn;
+      if(key==="whatsapp" && !gen.data.phoneIntl) label="בחר/י נמען בוואטסאפ";
       x.font="800 40px "+FONT;
       var bw=x.measureText(label).width+96;
       rr(x,(W-bw)/2,y+16,bw,92,46);
@@ -511,7 +515,7 @@
     var url=lastGen.url;
     var nm=shareName.value.trim();
     var text=(nm ? nm+", " : "")+"הכנתי לך קישור שפותח "+(SHARE_PHRASES[current]||"פעולה")+" בלחיצה אחת ✨";
-    var textWithUrl=WANT_QR ? text : text+"\n"+url;
+    var textWithUrl=text+"\n"+url;
     function done(){ closeShare(); }
     function copyFallback(){
       copyPlain(text+"\n"+url,function(){
