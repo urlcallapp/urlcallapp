@@ -327,12 +327,160 @@
   }
   copyBtn.addEventListener("click", doCopy);
 
-  shareBtn.addEventListener("click", function(){
-    var url = outEl.textContent;
-    if(navigator.share){
-      navigator.share({title:"urlcallapp", url:url}).catch(function(){});
-    } else {
-      doCopy();
+  /* ---------- designed share card (local canvas, no server) ---------- */
+  var shareSheet=$("shareSheet"), shareName=$("shareName"), sharePreview=$("sharePreview"),
+      shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
+      shareCancel=$("shareCancel");
+  var shareBlob=null, shareTimer=null;
+  var SHARE_PHRASES={tel:"שיחה",sms:"SMS",whatsapp:"וואטסאפ",mailto:"מייל",facetime:"FaceTime",contact:"כרטיס קשר"};
+  var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
+  var FONT='"Heebo","Segoe UI",Arial,sans-serif';
+
+  function iconPath(key){ var m=IC[key] && IC[key].match(/d="([^"]+)"/); return m ? new Path2D(m[1]) : null; }
+  function rr(x,px,py,w,h,r){ x.beginPath(); x.moveTo(px+r,py); x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r); x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath(); }
+  function fitFont(x,text,weight,size,min,family,maxW){
+    while(size>min){ x.font=weight+" "+size+"px "+family; if(x.measureText(text).width<=maxW) break; size-=2; }
+    return size;
+  }
+
+  function drawShareCard(name,key){
+    var W=1080,H=1080,c=document.createElement("canvas");c.width=W;c.height=H;
+    var x=c.getContext("2d"), color=SHARE_COLORS[key]||"#7c3aed";
+    var g=x.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,"#6d28d9");g.addColorStop(.45,"#db2777");g.addColorStop(1,"#f59e0b");
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    x.fillStyle="rgba(255,255,255,.09)";
+    x.beginPath();x.arc(60,150,240,0,7);x.fill();
+    x.beginPath();x.arc(W-40,H-170,290,0,7);x.fill();
+    x.fillStyle="rgba(255,255,255,.06)";
+    x.beginPath();x.arc(180,H-40,170,0,7);x.fill();
+    x.beginPath();x.arc(W-190,70,150,0,7);x.fill();
+    /* brand row: mark + urlcallapp wordmark, centered as a group */
+    var mark=104, markY=86;
+    var phoneIcon=iconPath("tel");
+    x.font="800 78px "+FONT;
+    var w1=x.measureText("url").width, w2=x.measureText("call").width, w3=x.measureText("app").width;
+    var total=mark+26+w1+w2+w3, bx=(W-total)/2;
+    rr(x,bx,markY,mark,mark,30);
+    var mg=x.createLinearGradient(bx,markY,bx+mark,markY+mark);
+    mg.addColorStop(0,"#fde047");mg.addColorStop(1,"#fb923c");
+    x.fillStyle=mg;x.fill();
+    x.save();x.translate(bx+mark/2,markY+mark/2);
+    var ms=mark*0.62/24;x.scale(ms,ms);x.translate(-12,-12);
+    x.fillStyle="#1f1235";if(phoneIcon)x.fill(phoneIcon);x.restore();
+    x.textBaseline="middle";x.textAlign="left";x.direction="ltr";
+    var ty=markY+mark/2+4, tx=bx+mark+26;
+    x.fillStyle="#fff";x.fillText("url",tx,ty);
+    x.fillStyle="#fde047";x.fillText("call",tx+w1,ty);
+    x.fillStyle="#fff";x.fillText("app",tx+w1+w2,ty);
+    /* white card */
+    var cx=100,cy=250,cw=W-200,ch=620;
+    x.save();
+    x.shadowColor="rgba(31,18,53,.35)";x.shadowBlur=45;x.shadowOffsetY=18;
+    rr(x,cx,cy,cw,ch,56);x.fillStyle="rgba(255,255,255,.95)";x.fill();
+    x.restore();
+    /* protocol icon disc */
+    var icx=W/2, icy=cy+128, ir=76;
+    x.beginPath();x.arc(icx,icy,ir,0,7);x.fillStyle=color;x.fill();
+    var p=iconPath(key)||phoneIcon;
+    x.save();x.translate(icx,icy);
+    var is=(ir*2*0.62)/24;x.scale(is,is);x.translate(-12,-12);
+    x.fillStyle="#fff";if(p)x.fill(p);x.restore();
+    /* headline + subline */
+    var headline=name ? "היי "+name+"!" : "היי!";
+    x.direction="rtl";x.textAlign="center";x.textBaseline="alphabetic";
+    fitFont(x,headline,"800",84,40,FONT,cw-120);
+    x.fillStyle="#1f1235";
+    x.fillText(headline,W/2,cy+292);
+    var line2="הכנתי לך קישור שפותח "+(SHARE_PHRASES[key]||"פעולה")+" בלחיצה אחת";
+    fitFont(x,line2,"500",40,26,FONT,cw-140);
+    x.fillStyle="#4c3f73";
+    x.fillText(line2,W/2,cy+368);
+    /* domain pill */
+    var pill="urlcallapp.github.io/urlcallapp";
+    x.font="700 34px "+FONT;x.direction="ltr";
+    var pw=x.measureText(pill).width+72;
+    rr(x,(W-pw)/2,cy+460,pw,86,43);
+    x.fillStyle="#f3efff";x.fill();
+    x.fillStyle="#7c3aed";x.textAlign="center";x.textBaseline="middle";
+    x.fillText(pill,W/2,cy+460+46);
+    /* footer on the gradient */
+    x.font="400 30px "+FONT;x.fillStyle="rgba(255,255,255,.92)";x.direction="rtl";
+    x.fillText("נוצר בדפדפן, בלי אפליקציה ובלי שרת",W/2,cy+ch+92);
+    return c;
+  }
+
+  function copyPlain(text,onOk){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(onOk,function(){legacy();});
+    } else { legacy(); }
+    function legacy(){
+      var ta=document.createElement("textarea");
+      ta.value=text;document.body.appendChild(ta);ta.select();
+      try{document.execCommand("copy");onOk();}catch(e){}
+      document.body.removeChild(ta);
     }
+  }
+
+  function refreshSharePreview(){
+    var card=drawShareCard(shareName.value.trim(),current);
+    shareImg.src=card.toDataURL("image/png");
+    sharePreview.hidden=false;
+    shareBlob=null;shareGo.disabled=true;
+    card.toBlob(function(b){ shareBlob=b; shareGo.disabled=false; },"image/png");
+  }
+
+  function openShare(){
+    var preset=val("name");
+    if(preset) shareName.value=preset;
+    shareSheet.hidden=false;
+    document.body.style.overflow="hidden";
+    refreshSharePreview();
+    setTimeout(function(){ shareName.focus(); },80);
+  }
+  function closeShare(){
+    shareSheet.hidden=true;
+    document.body.style.overflow="";
+  }
+
+  shareBtn.addEventListener("click", openShare);
+  shareCancel.addEventListener("click", closeShare);
+  shareSheet.addEventListener("click", function(e){ if(e.target===shareSheet) closeShare(); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape" && !shareSheet.hidden) closeShare(); });
+  shareName.addEventListener("input", function(){
+    clearTimeout(shareTimer);
+    shareTimer=setTimeout(refreshSharePreview,160);
+  });
+  shareDownload.addEventListener("click", function(){
+    if(!shareImg.src) return;
+    var a=document.createElement("a");a.download="urlcallapp-share.png";a.href=shareImg.src;a.click();
+  });
+
+  shareGo.addEventListener("click", function(){
+    var url=outEl.textContent;
+    var nm=shareName.value.trim();
+    var text=(nm ? nm+", " : "")+"הכנתי לך קישור שפותח "+(SHARE_PHRASES[current]||"פעולה")+" בלחיצה אחת ✨";
+    function done(){ closeShare(); }
+    function copyFallback(){
+      copyPlain(text+"\n"+url,function(){
+        toast.textContent="הטקסט והקישור הועתקו!";
+        toast.style.background="#16a34a";
+        toast.classList.add("show");
+        setTimeout(function(){ toast.classList.remove("show"); },1800);
+      });
+      done();
+    }
+    if(shareBlob){
+      var file=new File([shareBlob],"urlcallapp-share.png",{type:"image/png"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],text:text+"\n"+url,title:"urlcallapp"}).then(done,function(){});
+        return;
+      }
+    }
+    if(navigator.share){
+      navigator.share({title:"urlcallapp",text:text,url:url}).then(done,function(){});
+      return;
+    }
+    copyFallback();
   });
 })();

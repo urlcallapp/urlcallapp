@@ -1,12 +1,9 @@
-# Contact card + QR preview
+# Designed share card preview
 
 Isolated test version. Production files outside `test/` are unchanged.
 
-- One contact-card link with a name, phone action buttons and optional email.
-- Phone action buttons can be selected individually. At least one usable contact action is required.
-- Contact details are encoded in the URL fragment, not stored in an app database. Anyone holding the complete link or QR can read them. No secrets.
-- Local QR generation and PNG download for every generated link. No external QR service, backend, accounts or paid dependencies.
-- QR library: `qrcode` (MIT), bundled in `vendor/qr.js`, license alongside it.
-- Static link previews are generic. Personal names are not rendered in social thumbnails.
-- This preview does not auto-open a contact action. The recipient chooses a button.
+- The share button opens a sheet: optional recipient name (prefilled from the form's name field), a live preview of a branded 1080x1080 PNG card generated locally on a canvas, personalized with the name and the action type.
+- Share uses the Web Share API with the image file + a short personal text + the generated link. Feature-detected fallbacks: text+link share when image sharing is unsupported, clipboard copy when there is no Web Share API at all.
+- Optional download of the card as a PNG.
+- Everything is generated in the browser. No server, no external service, no accounts, no paid dependencies.
 - Feature promotion into the production root must wait for owner approval.
