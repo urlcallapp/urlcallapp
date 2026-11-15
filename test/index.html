@@ -35,6 +35,17 @@
     <h2>1. מה הקישור יעשה?</h2>
     <div class="proto-grid" id="protos"></div>
     <div id="fields"></div>
+    <section class="logo-box" aria-label="לוגו">
+      <h3>לוגו (לא חובה)</h3>
+      <div class="logo-row">
+        <img id="logoPrev" alt="הלוגו שנבחר" hidden>
+        <button type="button" class="ghost" id="logoPick">בחירת תמונה</button>
+        <button type="button" class="ghost" id="logoClear" hidden>הסרה</button>
+        <input type="file" id="logoFile" accept="image/*" hidden>
+      </div>
+      <label class="embed-opt"><input type="checkbox" id="logoEmbed" disabled> הצגת הלוגו גם בדף שנפתח מהקישור (הקישור ארוך יותר ולא יתאים ל-QR)</label>
+      <small>הלוגו נשמר רק במכשיר הזה ומופיע בכרטיס ובתמונת השיתוף. בלי הסימון לא נשלח בקישור.</small>
+    </section>
     <button class="btn" id="gen"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></svg>צור קישור</button>
     <div id="result" aria-live="polite">
       <h2>2. הקישור מוכן</h2>
@@ -69,6 +80,6 @@
   </div>
 </div>
 <script src="vendor/qr.js"></script>
-<script src="app.js?v=share3"></script>
+<script src="app.js?v=logo1"></script>
 </body>
 </html>

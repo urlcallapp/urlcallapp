@@ -9,3 +9,8 @@ Isolated test version. Production files outside `test/` are unchanged.
 - QR on the card (owner-confirmed): a small locally generated QR of the card's URL, as a bonus on top of the link in the share text. The card headline is the entered name alone; the action is conveyed by the matching icon.
 - Everything is generated in the browser. No server, no external service, no accounts, no paid dependencies.
 - Feature promotion into the production root must wait for owner approval.
+
+## Names and logo (test)
+
+- A name field (optional) now exists for call, SMS, WhatsApp, email, FaceTime and contact card; it shows on the opened page and on the share card.
+- Optional logo: picked from the device, resized locally, kept only in this browser (localStorage). It appears on the share card image. A checkbox can also embed a tiny 72px copy in the link's #fragment so the opened page / contact card shows it too (longer link; the QR may not fit).
