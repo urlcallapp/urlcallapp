@@ -2,7 +2,7 @@
 
 Isolated test version. Production files outside `test/` are unchanged.
 
-- The share button opens a sheet: optional recipient name for the message text, and a live preview of the share image.
+- The share button opens a sheet with a live preview of the share image plus share / save / cancel actions. The shared message carries no marketing text - just the link itself alongside the image (owner-confirmed).
 - The share image IS the card the link opens: a 1080x1080 PNG rendered locally on a canvas from the same data as the landing page - action icon in its color, the card's title (with the name when one was entered), its detail (phone/email/text), and its action button. No generic wrapper.
 - Share uses the Web Share API with the image file + a short personal text + the generated link. Feature-detected fallbacks: text+link share when image sharing is unsupported, clipboard copy when there is no Web Share API at all.
 - Optional download of the card as a PNG.

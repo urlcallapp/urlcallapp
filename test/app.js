@@ -330,12 +330,11 @@
   copyBtn.addEventListener("click", doCopy);
 
   /* ---------- designed share card: renders the actual card, locally ---------- */
-  var shareSheet=$("shareSheet"), shareName=$("shareName"), sharePreview=$("sharePreview"),
+  var shareSheet=$("shareSheet"), sharePreview=$("sharePreview"),
       shareImg=$("shareImg"), shareGo=$("shareGo"), shareDownload=$("shareDownload"),
       shareCancel=$("shareCancel");
-  var shareBlob=null, shareTimer=null, lastGen=null;
+  var shareBlob=null, lastGen=null;
   var WANT_QR=true; /* QR on the card - confirmed by the owner */
-  var SHARE_PHRASES={tel:"שיחה",sms:"SMS",whatsapp:"וואטסאפ",mailto:"מייל",facetime:"FaceTime",contact:"כרטיס קשר"};
   var SHARE_COLORS={tel:"#7c3aed",sms:"#0891b2",whatsapp:"#16a34a",mailto:"#db2777",facetime:"#2563eb",contact:"#ea580c"};
   var NEUTRAL_BTN={tel:"התקשר/י",sms:"שלח/י",whatsapp:"פתח/י וואטסאפ",mailto:"פתח/י מייל",facetime:"התחל/י FaceTime"};
   var FONT='"Heebo","Segoe UI",Arial,sans-serif';
@@ -482,12 +481,9 @@
 
   function openShare(){
     if(!lastGen) return;
-    var preset=val("name");
-    if(preset) shareName.value=preset;
     shareSheet.hidden=false;
     document.body.style.overflow="hidden";
     refreshSharePreview();
-    setTimeout(function(){ shareName.focus(); },80);
   }
   function closeShare(){
     shareSheet.hidden=true;
@@ -498,10 +494,6 @@
   shareCancel.addEventListener("click", closeShare);
   shareSheet.addEventListener("click", function(e){ if(e.target===shareSheet) closeShare(); });
   document.addEventListener("keydown", function(e){ if(e.key==="Escape" && !shareSheet.hidden) closeShare(); });
-  shareName.addEventListener("input", function(){
-    clearTimeout(shareTimer);
-    shareTimer=setTimeout(refreshSharePreview,160);
-  });
   shareDownload.addEventListener("click", function(){
     if(!shareImg.src) return;
     var a=document.createElement("a");a.download="urlcallapp-card.png";a.href=shareImg.src;a.click();
@@ -510,13 +502,10 @@
   shareGo.addEventListener("click", function(){
     if(!lastGen) return;
     var url=lastGen.url;
-    var nm=shareName.value.trim();
-    var text=(nm ? nm+", " : "")+"הכנתי לך קישור שפותח "+(SHARE_PHRASES[current]||"פעולה")+" בלחיצה אחת ✨";
-    var textWithUrl=text+"\n"+url;
     function done(){ closeShare(); }
     function copyFallback(){
-      copyPlain(text+"\n"+url,function(){
-        toast.textContent="הטקסט והקישור הועתקו!";
+      copyPlain(url,function(){
+        toast.textContent="הקישור הועתק!";
         toast.style.background="#16a34a";
         toast.classList.add("show");
         setTimeout(function(){ toast.classList.remove("show"); },1800);
@@ -526,12 +515,12 @@
     if(shareBlob){
       var file=new File([shareBlob],"urlcallapp-card.png",{type:"image/png"});
       if(navigator.canShare && navigator.canShare({files:[file]})){
-        navigator.share({files:[file],text:textWithUrl,title:"urlcallapp"}).then(done,function(){});
+        navigator.share({files:[file],text:url,title:"urlcallapp"}).then(done,function(){});
         return;
       }
     }
     if(navigator.share){
-      navigator.share({title:"urlcallapp",text:text,url:url}).then(done,function(){});
+      navigator.share({title:"urlcallapp",url:url}).then(done,function(){});
       return;
     }
     copyFallback();
